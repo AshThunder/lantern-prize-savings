@@ -4,6 +4,8 @@ A production-oriented [PoolTogether](https://dev.pooltogether.com/protocol/desig
 
 **Live app (Sepolia):** [https://lantern-prize.pages.dev](https://lantern-prize.pages.dev)
 
+**Source:** [github.com/AshThunder/lantern-prize-savings](https://github.com/AshThunder/lantern-prize-savings)
+
 **Pool:** [`0x38a7078996F0FCE4C4c858ae5B445fD6F420C3C8`](https://sepolia.etherscan.io/address/0x38a7078996F0FCE4C4c858ae5B445fD6F420C3C8)
 
 ## For judges
