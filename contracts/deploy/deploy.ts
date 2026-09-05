@@ -27,17 +27,33 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     drawPeriod = 0;
   }
 
+  const forwarder = await deploy("LanternForwarder", { from: deployer, log: true });
+
   const pool = await deploy("ConfidentialPrizePool", {
     from: deployer,
-    args: [deployer, prizeToken, asset, wrapper, drawPeriod],
+    args: [deployer, prizeToken, asset, wrapper, drawPeriod, forwarder.address],
+    log: true,
+  });
+
+  const nft = await deploy("MockDuckNFT", {
+    from: deployer,
+    args: [forwarder.address],
+    log: true,
+  });
+  const hook = await deploy("PrizeToNftHolderHook", {
+    from: deployer,
+    args: [nft.address, pool.address],
     log: true,
   });
 
   console.log(`ConfidentialPrizePool: ${pool.address}`);
+  console.log(`LanternForwarder: ${forwarder.address}`);
+  console.log(`MockDuckNFT: ${nft.address}`);
+  console.log(`PrizeToNftHolderHook: ${hook.address}`);
   console.log(`asset: ${asset}`);
   console.log(`prizeToken: ${prizeToken}`);
 };
 
 export default func;
-func.id = "deploy_lantern";
+func.id = "deploy_lantern_running_twab_v1";
 func.tags = ["Lantern"];

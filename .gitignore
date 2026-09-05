@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+.dev.vars
 
 # deps & build
 node_modules
