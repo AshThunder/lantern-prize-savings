@@ -525,14 +525,50 @@ export default function App() {
     return () => window.clearInterval(id)
   }, [refetchCusdt, refetchDecrypt])
 
-  function requirePublicUsdt(need: bigint, action: string) {
-    const have = usdtBal ?? 0n
+  function requirePublicUsdt(need: bigint, action: string, have = usdtBal ?? 0n) {
     if (need === 0n) throw new Error(`Enter a ${action} amount.`)
     if (have < need) {
       throw new Error(
-        `${action} uses public USDT (${formatUnits(have)} on hand, ${formatUnits(need)} needed). Claim test USDT and leave some unshielded, or Unshield first.`,
+        `${action} needs ${formatUnits(need)} public USDT. This wallet has ${formatUnits(have)}. Vault shares and cUSDT do not count. Claim faucet or Unshield, then ${action}.`,
       )
     }
+  }
+
+  function requireAllowance(need: bigint, action: string, have = allowance ?? 0n) {
+    if (have < need) {
+      throw new Error(
+        `${action} needs the pool approved for ${formatUnits(need)} public USDT. Current allowance is ${formatUnits(have)}. Click Approve, confirm MetaMask, then ${action}.`,
+      )
+    }
+  }
+
+  async function approvePoolUsdt(need: bigint): Promise<Hex | void> {
+    const [{ data: haveBal }, { data: haveAllow }] = await Promise.all([refetchUsdt(), refetchAllow()])
+    const have = haveBal ?? usdtBal ?? 0n
+    const current = haveAllow ?? allowance ?? 0n
+    requirePublicUsdt(need, 'Approve', have)
+    if (current >= need) {
+      setStatus(`Already approved ${formatUnits(current)}. Click Sponsor.`)
+      return
+    }
+    // Official Zama token is Tether USD (Mock). It reverts unless you zero first.
+    if (current > 0n) {
+      setStatus('USDT reset — confirm 0 in MetaMask, then the real amount')
+      const reset = await write({
+        address: SEPOLIA_USDT,
+        abi: erc20Abi,
+        functionName: 'approve',
+        args: [POOL_ADDRESS, 0n],
+      })
+      await waitReceipt(reset)
+    }
+    setStatus('Approve USDT')
+    return write({
+      address: SEPOLIA_USDT,
+      abi: erc20Abi,
+      functionName: 'approve',
+      args: [POOL_ADDRESS, need],
+    })
   }
 
   async function run(label: string, fn: () => Promise<`0x${string}` | void>) {
@@ -1305,22 +1341,20 @@ export default function App() {
                   title="Feed the prize"
                   mark="(public USDT)"
                   does="The pool wraps 90% into encrypted cUSDT for claims — who won stays private. Prize size stays public. 10% stays unwrapped to pay whoever clicks Start or Finish. Liquidate does the same as Sponsor."
+                  extra={
+                    <p>
+                      Public USDT {usdtBal !== undefined ? formatUnits(usdtBal) : '—'}. Allowance{' '}
+                      {allowance !== undefined ? formatUnits(allowance) : '—'}. Approve the prize
+                      amount (confirm MetaMask), then Sponsor. Do not use vault shares.
+                    </p>
+                  }
                 >
                   <Field label="Prize (public USDT)" value={prizeAmount} onChange={setPrizeAmount} />
                   <button
                     className="btn"
                     disabled={!isConnected || busy || !poolReady}
                     onClick={() =>
-                      run('Approve USDT', () => {
-                        const need = parseUnits(prizeAmount)
-                        requirePublicUsdt(need, 'Approve')
-                        return write({
-                          address: SEPOLIA_USDT,
-                          abi: erc20Abi,
-                          functionName: 'approve',
-                          args: [POOL_ADDRESS, need],
-                        })
-                      })
+                      run('Approve USDT', () => approvePoolUsdt(parseUnits(prizeAmount)))
                     }
                   >
                     Approve
@@ -1332,6 +1366,7 @@ export default function App() {
                       run('Sponsor prize', () => {
                         const need = parseUnits(prizeAmount)
                         requirePublicUsdt(need, 'Sponsor')
+                        requireAllowance(need, 'Sponsor')
                         return write({
                           address: POOL_ADDRESS,
                           abi: poolAbi,

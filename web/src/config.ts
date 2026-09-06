@@ -163,7 +163,7 @@ function errorBlob(err: unknown): string {
 
 const REVERT_FN_HELP: Record<string, string> = {
   approve:
-    'USDT did not allow the spend. Approve needs public USDT in this wallet — not vault shares or cUSDT. Claim test USDT and leave some unshielded, or Unshield, then Approve again.',
+    'Approve failed. If allowance is already non-zero, MetaMask may ask twice (reset to 0, then set the new amount). Confirm both, then Sponsor.',
   sponsor:
     'Sponsor failed. It pulls public USDT, not vault shares. Claim faucet or Unshield, Approve the amount, then Sponsor.',
   liquidateYield:
@@ -205,9 +205,10 @@ export function explainError(err: unknown): string {
   if (/NoPrizeLiquidity/i.test(raw)) return 'Sponsor prize liquidity before awarding a draw.'
   if (/NoDepositors/i.test(raw)) return 'The pool needs at least one depositor.'
   if (/MaxDepositors/i.test(raw)) return 'Deposit was rejected.'
-  if (/allowance|not been approved/i.test(raw)) return 'Missing USDT approval. Click Approve, then retry.'
   const fn = raw.match(/contract function "(\w+)" reverted/i)?.[1]
   if (fn && REVERT_FN_HELP[fn]) return REVERT_FN_HELP[fn]
+  if (/allowance|not been approved/i.test(raw))
+    return 'The pool cannot pull that much public USDT yet. Click Approve for the prize amount, confirm MetaMask, then Sponsor.'
   if (fn) return `${fn} failed. Check public USDT, approval, and that you are on Sepolia.`
   if (/wrong network|wrong chain|unsupported chain|chain mismatch|switch (your )?(wallet|network)/i.test(raw))
     return 'Lantern only runs on Ethereum Sepolia. Email login is moved there automatically. If this is MetaMask, approve the switch.'

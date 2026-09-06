@@ -35,6 +35,12 @@ export function useSponsoredWrite() {
   const openfortWallet = connector?.id === 'xyz.openfort'
 
   async function write(params: WriteArgs): Promise<Hex> {
+    // Tether-style USDT reverts estimateGas when changing a non-zero allowance.
+    // Send a small fixed limit so Approve actually reaches MetaMask.
+    if (params.functionName === 'approve') {
+      return writeContractAsync({ ...params, gas: 100_000n } as never)
+    }
+
     if (openfortWallet) {
       // Estimate on the public RPC so wagmi does not call Openfort eth_estimateGas
       // (another ~30s UserOp) before the real send. That delay drops the passkey.
