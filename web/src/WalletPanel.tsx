@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { encode } from 'uqr'
-import { useBalance, useReadContract } from 'wagmi'
+import { useAccount, useBalance, useReadContract } from 'wagmi'
 import { SEPOLIA_USDT, erc20Abi, formatUnits, openfortGasless, shortAddr } from './config'
 
 function formatEth(value: bigint) {
@@ -173,6 +173,8 @@ export function TxDock({
   onApprovePasskey?: () => void
   onDismiss: () => void
 }) {
+  const { connector } = useAccount()
+  const openfortWallet = connector?.id === 'xyz.openfort'
   if (phase === 'idle') return null
 
   const title =
@@ -196,19 +198,24 @@ export function TxDock({
       </div>
       {phase === 'working' && (
         <p>
-          {openfortGasless
+          {openfortWallet
             ? passkeyReady
               ? 'Prepared. Click Approve passkey so the browser can show the prompt.'
               : 'Openfort is preparing a gasless transaction (~30s). Stay on this tab. A passkey button will appear.'
-            : 'Approve in the wallet if it asks.'}
+            : 'Approve in MetaMask if it asks. You pay Sepolia ETH for gas.'}
         </p>
       )}
-      {phase === 'working' && passkeyReady && onApprovePasskey && (
+      {phase === 'working' && openfortWallet && passkeyReady && onApprovePasskey && (
         <button type="button" className="tx-passkey" onClick={onApprovePasskey}>
           Approve passkey
         </button>
       )}
-      {phase === 'confirming' && <p>Waiting for Sepolia to include the transaction.</p>}
+      {phase === 'confirming' && (
+        <p>
+          Waiting for Sepolia to include the transaction. This can take a minute. Open the
+          Etherscan link if it sits here.
+        </p>
+      )}
       {phase === 'done' && <p>Balances refresh in a few seconds.</p>}
       {hash && (
         <a href={`https://sepolia.etherscan.io/tx/${hash}`} target="_blank" rel="noreferrer">

@@ -240,6 +240,8 @@ export default function App() {
     error: receiptError,
   } = useWaitForTransactionReceipt({
     hash: txHash,
+    timeout: 180_000,
+    pollingInterval: 4_000,
   })
   const encrypt = useEncrypt()
   const shield = useShield({ address: SEPOLIA_CUSDT })
