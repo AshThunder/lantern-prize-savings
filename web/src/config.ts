@@ -181,6 +181,8 @@ const REVERT_FN_HELP: Record<string, string> = {
 export function explainError(err: unknown): string {
   const raw = errorBlob(err)
   if (/user rejected|denied/i.test(raw)) return 'Wallet rejected the request.'
+  if (/origin.*not allowed|is not allowed|allowed origins/i.test(raw))
+    return 'Openfort rejected this site origin. In dashboard.openfort.io/security add https://laternpool.xyz and https://www.laternpool.xyz (and http://localhost:5173 for local). Then use email OTP again — not MetaMask SIWE.'
   if (/Passkey approval cancelled/i.test(raw)) return 'Passkey approval was dismissed. Click Claim again, wait for Approve passkey, then click it.'
   if (
     /Transaction creation failed|No transaction receipt received|Iframe signer did not respond|NotAllowedError|passkey/i.test(

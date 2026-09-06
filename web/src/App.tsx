@@ -754,19 +754,49 @@ export default function App() {
     <>
       <div className="grain" aria-hidden="true" />
       <header className="nav">
-        <a className="nav-brand-link" href="#play">
-          <div className="nav-brand">
-            <span>Ln</span>
-            Lantern
+        <div className="nav-bar">
+          <a className="nav-brand-link" href="#play">
+            <div className="nav-brand">
+              <span>Ln</span>
+              Lantern
+            </div>
+          </a>
+          <div className="nav-session">
+            {openfortGasless && <span className="pill">Gasless</span>}
+            {!isConnected ? (
+              openfortConfigured ? (
+                <SignInButton className="btn cta">Sign in</SignInButton>
+              ) : (
+                <button className="btn cta" onClick={connectWallet} disabled={connecting}>
+                  Connect
+                </button>
+              )
+            ) : (
+              <>
+                <NetworkSwitcher
+                  wrong={wrongNetwork}
+                  switching={switching}
+                  onSwitch={() => void goSepolia()}
+                />
+                {openfortConfigured ? (
+                  <OpenfortWalletChip address={address!} />
+                ) : (
+                  <WalletChip address={address!} />
+                )}
+                {openfortConfigured ? (
+                  <SignOutButton className="btn ghost">Disconnect</SignOutButton>
+                ) : (
+                  <button className="btn ghost" onClick={disconnectWallet}>
+                    Disconnect
+                  </button>
+                )}
+              </>
+            )}
           </div>
-        </a>
-        <div className="nav-meta">
-          <a className="keep" href="#play">
-            Play
-          </a>
-          <a className="keep" href="#guide">
-            How
-          </a>
+        </div>
+        <nav className="nav-links" aria-label="Site">
+          <a href="#play">Play</a>
+          <a href="#guide">How</a>
           <a href="#pt-map">PT replica</a>
           <a href={`https://sepolia.etherscan.io/address/${POOL_ADDRESS}`} target="_blank" rel="noreferrer">
             Pool
@@ -774,37 +804,7 @@ export default function App() {
           <a href="https://github.com/AshThunder/lantern-prize-savings" target="_blank" rel="noreferrer">
             GitHub
           </a>
-          {openfortGasless && <span className="pill">Gasless</span>}
-          {!isConnected ? (
-            openfortConfigured ? (
-              <SignInButton className="btn cta">Sign in</SignInButton>
-            ) : (
-              <button className="btn cta" onClick={connectWallet} disabled={connecting}>
-                Connect
-              </button>
-            )
-          ) : (
-            <>
-              <NetworkSwitcher
-                wrong={wrongNetwork}
-                switching={switching}
-                onSwitch={() => void goSepolia()}
-              />
-              {openfortConfigured ? (
-                <OpenfortWalletChip address={address!} />
-              ) : (
-                <WalletChip address={address!} />
-              )}
-              {openfortConfigured ? (
-                <SignOutButton className="btn ghost">Disconnect</SignOutButton>
-              ) : (
-                <button className="btn ghost" onClick={disconnectWallet}>
-                  Disconnect
-                </button>
-              )}
-            </>
-          )}
-        </div>
+        </nav>
       </header>
 
       {wrongNetwork && (
@@ -1010,7 +1010,7 @@ export default function App() {
 
                 <ActionRow
                   title="Sign in"
-                  does="Use email OTP for the gasless passkey wallet. MetaMask is optional SIWE — unlock the extension and approve the prompt. If it fails, stay on email."
+                  does="Email OTP is the working path: Openfort passkey, sponsored gas. Stay on laternpool.xyz (not www). If the modal says origin is not allowed, add https://laternpool.xyz in Openfort Security. MetaMask SIWE is optional and fails without that origin."
                   active={beat === 'signin'}
                   done={isConnected}
                 >

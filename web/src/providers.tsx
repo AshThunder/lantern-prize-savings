@@ -11,6 +11,7 @@ import { createConfig as createZamaConfig } from '@zama-fhe/react-sdk/wagmi'
 import { sepolia as sepoliaFhe } from '@zama-fhe/sdk/chains'
 import { web } from '@zama-fhe/sdk/web'
 import { type ReactNode } from 'react'
+import { fallback } from 'viem'
 import { WagmiProvider, createConfig, http, injected } from 'wagmi'
 import { sepolia } from 'wagmi/chains'
 import {
@@ -22,14 +23,28 @@ import {
 } from './config'
 import './openfortPasskeyGate'
 
-const transports = { [sepolia.id]: http(RPC_URL) }
+function publicAppUrl() {
+  if (typeof window === 'undefined') return 'https://laternpool.xyz'
+  const { origin } = window.location
+  // Openfort rejects 127.0.0.1 even when localhost is allowlisted.
+  if (origin.startsWith('http://127.0.0.1')) return 'http://localhost:5173'
+  return origin
+}
+
+const transports = {
+  [sepolia.id]: fallback([
+    http(RPC_URL),
+    http('https://rpc.sepolia.org'),
+    http('https://1rpc.io/sepolia'),
+  ]),
+}
 
 const wagmiConfig = createConfig(
   openfortConfigured
     ? getDefaultConfig({
         appName: 'Lantern',
         appDescription: 'Confidential prize savings on the Zama Protocol',
-        appUrl: 'https://laternpool.xyz',
+        appUrl: publicAppUrl(),
         chains: [sepolia],
         transports,
       })

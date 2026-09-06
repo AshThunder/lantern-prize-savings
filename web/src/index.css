@@ -19,12 +19,17 @@
 
 html {
   scroll-behavior: smooth;
-  scroll-padding-top: 80px;
+  scroll-padding-top: 96px;
 }
 
 html, body, #root {
   margin: 0;
   min-height: 100%;
+}
+
+html, body {
+  overflow-x: clip;
+  max-width: 100%;
 }
 
 body {
@@ -48,13 +53,38 @@ body {
   top: 0;
   z-index: 20;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 14px 22px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  padding: 12px 22px 10px;
+  padding-left: max(22px, env(safe-area-inset-left));
+  padding-right: max(22px, env(safe-area-inset-right));
   border-bottom: 1px solid #2a2a2a;
   background: rgba(12, 12, 12, 0.92);
   backdrop-filter: blur(8px);
+}
+
+.nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.nav-session {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.nav-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  font-size: 13px;
+  color: var(--mute);
 }
 
 .nav-brand {
@@ -75,16 +105,6 @@ body {
   color: var(--ink);
   font-family: 'Archivo Black', Archivo, sans-serif;
   font-size: 12px;
-}
-
-.nav-meta {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 12px;
-  font-size: 13px;
-  color: var(--mute);
 }
 
 .nav a {
@@ -1324,17 +1344,83 @@ button.pill.addr:hover {
 }
 
 @media (max-width: 900px) {
-  .grid, .specs, .play-story, .action { grid-template-columns: 1fr; }
-  .display { font-size: 56px; text-shadow: 4px 4px 0 #000; }
-  .hero { padding: 40px 22px 56px; }
+  .grid, .specs, .action { grid-template-columns: 1fr; }
+  .play-story { grid-template-columns: 1fr 1fr; }
+  .display { font-size: clamp(40px, 14vw, 56px); text-shadow: 4px 4px 0 #000; }
+  .hero { padding: 36px 18px 48px; }
   .hero::before, .hero::after { display: none; }
-  .nav-meta a:not(.btn):not(.keep) { display: none; }
   .action-go { justify-content: flex-start; }
   .draw-clock em { font-size: 52px; }
   .dash-grid { grid-template-columns: repeat(2, 1fr); }
   .dash-stat { border-right: 3px solid #000; }
   .dash-stat:nth-child(4n) { border-right: 3px solid #000; }
   .dash-stat:nth-child(2n) { border-right: 0; }
+  .leak { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .leak table { min-width: 680px; }
+  .guide-jump { top: 88px; overflow-x: auto; flex-wrap: nowrap; }
+  .guide-jump a { flex: none; }
+}
+
+@media (max-width: 640px) {
+  .nav {
+    padding: 10px 14px 8px;
+    padding-left: max(14px, env(safe-area-inset-left));
+    padding-right: max(14px, env(safe-area-inset-right));
+  }
+  .nav-session .btn { padding: 8px 10px; font-size: 12px; }
+  .nav-session .pill { padding: 5px 8px; font-size: 11px; }
+  .hero { padding: 28px 14px 36px; }
+  .tagline { max-width: none; font-size: 22px; }
+  .lede { font-size: 15px; margin: 16px 0 20px; }
+  .dots { padding: 28px 14px 56px; }
+  .banner { margin: 12px 14px 0; }
+  .play-story { gap: 8px; }
+  .play-story li { padding: 12px; }
+  .play-story strong { font-size: 14px; }
+  .board-switch { gap: 8px; }
+  .board-switch button,
+  .btn,
+  .tx-passkey {
+    min-height: 44px;
+  }
+  .field { width: 100%; }
+  .field input {
+    width: 100%;
+    min-width: 0;
+    font-size: 16px;
+  }
+  .action { padding: 14px; }
+  .action-go {
+    width: 100%;
+  }
+  .action-go .btn,
+  .action-go a.btn {
+    flex: 1 1 100%;
+    text-align: center;
+  }
+  .dash-stat strong { font-size: 18px; }
+  .specs { grid-template-columns: 1fr 1fr; }
+  .spec strong { font-size: 26px; }
+  .tx-dock {
+    left: 8px;
+    right: 8px;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    width: auto;
+  }
+  .wallet-sheet { padding: 12px; }
+  .footer { padding: 22px 14px 32px; }
+}
+
+@media (max-width: 420px) {
+  .play-story,
+  .dash-grid,
+  .specs,
+  .board-switch {
+    grid-template-columns: 1fr;
+  }
+  .dash-stat:nth-child(2n) { border-right: 3px solid #000; }
+  .dash-stat:last-child { border-right: 0; }
+  .nav-brand { font-size: 14px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
