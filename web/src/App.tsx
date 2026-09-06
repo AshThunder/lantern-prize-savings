@@ -1844,7 +1844,8 @@ export default function App() {
               <tr>
                 <td>RNG auction</td>
                 <td>
-                  Onchain <code>FHE.randEuint64</code>
+                  Public <code>block.prevrandao</code> seed in <code>startDraw</code>; FHE ticket +{' '}
+                  <code>isWinner</code> at claim. No offchain RNG. Not <code>FHE.rand</code>
                 </td>
                 <td>
                   <a href="https://dev.pooltogether.com/protocol/design/#rng-auction" target="_blank" rel="noreferrer">
@@ -1892,9 +1893,9 @@ export default function App() {
               <tr>
                 <th>Fairness</th>
                 <td>
-                  Winner = PoolTogether isWinner: uniform(userSeed, encrypted TWAB total) vs weight × 75/25.
-                  Last-second deposits have zero weight. Check prize / claim to settle; losers should claim
-                  encrypted 0. No offchain RNG.
+                  Winner = PoolTogether isWinner: public prevrandao seed, FHE ticket on encrypted TWAB, vs
+                  weight × 75/25. Last-second deposits have zero weight. Check prize / claim to settle;
+                  losers should claim encrypted 0. No offchain RNG and no FHE.rand.
                 </td>
               </tr>
             </tbody>

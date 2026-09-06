@@ -71,7 +71,7 @@ Lantern is a **confidential replica of [PoolTogether V5](https://dev.pooltogethe
 | Draw lifecycle Open / Closed / Awarded / Finalized | `getDrawPhase()` returns 0–3 | [Draws](https://dev.pooltogether.com/protocol/design/#draws) |
 | [Draw Manager](https://dev.pooltogether.com/protocol/design/prize-pool#incentivized-draws) `startDraw` / `finishDraw` | Permissionless `startDraw` after 60s (freezes vault TWAB) + `finalizeDraw`; `accruePrize` / `claim` run PT `isWinner` | [Incentivized draws](https://dev.pooltogether.com/protocol/design/prize-pool#incentivized-draws) |
 | [Prize Claimer](https://dev.pooltogether.com/protocol/design/prize-claimer) | `claim`, `claimTo`, permissionless `claimFor` | [Prize Claimer](https://dev.pooltogether.com/protocol/design/prize-claimer) |
-| RNG auction (Witnet / VRF) | Onchain `FHE.randEuint64` — no offchain RNG | [RNG auction](https://dev.pooltogether.com/protocol/design/#rng-auction) |
+| RNG auction (Witnet / VRF) | Public `block.prevrandao` seed in `startDraw`; FHE maps it onto encrypted TWAB at claim (`isWinner`). No offchain RNG. Not `FHE.rand` — a hidden seed would break the brief’s publicly verifiable draw | [RNG auction](https://dev.pooltogether.com/protocol/design/#rng-auction) |
 | Gasless (ERC-4337) | Openfort email/passkey EOA + EIP-7702 paymaster (same key signs Zama decrypt permits) | [PT gasless](https://paragraph.com/@pooltogether-2/pooltogether-has-gone-gasless) · [Openfort × Zama](https://www.openfort.io/docs/recipes/earn-private-yield-zama) |
 
 Owner `forceDraw` uses current shares (no hold cliff) so a demo can award immediately.
