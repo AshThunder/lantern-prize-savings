@@ -4,6 +4,7 @@ import {
   useConfidentialBalance,
   useConfidentialTokenAddress,
   useConfidentialTransferAndCall,
+  useDecryptPublicValues,
   useDecryptValues,
   useEncrypt,
   useGrantPermit,
@@ -13,6 +14,7 @@ import {
   useUnshieldAll,
   useWrappersRegistryAddress,
 } from '@zama-fhe/react-sdk'
+import { findUnwrapRequested } from '@zama-fhe/sdk'
 import {
   useAccount,
   useConnect,
@@ -24,7 +26,7 @@ import {
 } from 'wagmi'
 import { injected } from 'wagmi'
 import { sepolia } from 'wagmi/chains'
-import { isAddress, type Hex } from 'viem'
+import { isAddress, maxUint256, type Hex } from 'viem'
 import { poolAbi } from './poolAbi'
 import {
   DEPOSIT_DATA,
@@ -36,6 +38,7 @@ import {
   SEPOLIA_USDT,
   WRAPPERS_REGISTRY,
   ZERO_HANDLE,
+  confidentialWrapperAbi,
   erc20Abi,
   explainError,
   formatUnits,
@@ -46,9 +49,8 @@ import {
   parseUnits,
   shortAddr,
 } from './config'
-import { OpenfortWalletChip, SignInButton, SignOutButton } from './OpenfortAuth'
+import { OpenfortWalletChip, OpenfortWalletHint, SignInButton, SignOutButton } from './OpenfortAuth'
 import { TxDock, WalletChip } from './WalletPanel'
-import { cancelPasskeyGate, confirmPasskeyGate, subscribePasskeyGate } from './openfortPasskeyGate'
 import { useSponsoredWrite } from './useSponsoredWrite'
 import { Guide } from './Guide'
 
@@ -188,6 +190,10 @@ function useLocationHash() {
 }
 
 export default function App() {
+  return <AppBody />
+}
+
+function AppBody() {
   const hash = useLocationHash()
   const onGuide = hash === '#guide' || hash.startsWith('#guide-')
   const { address, isConnected, chainId } = useAccount()
@@ -218,12 +224,11 @@ export default function App() {
   const [error, setError] = useState('')
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>()
   const [txPhase, setTxPhase] = useState<'idle' | 'working' | 'confirming' | 'done' | 'error'>('idle')
-  const [passkeyReady, setPasskeyReady] = useState(false)
   const [board, setBoard] = useState<'save' | 'draw' | 'more'>('save')
   const [drawBusy, setDrawBusy] = useState(false)
 
   const publicClient = usePublicClient()
-  const { write, faucet, isPending: writing } = useSponsoredWrite()
+  const { write, writeBatch, faucet, isPending: writing, openfortSponsored } = useSponsoredWrite()
 
   function connectWallet() {
     connect({ connector: injected() })
@@ -244,6 +249,7 @@ export default function App() {
     pollingInterval: 4_000,
   })
   const encrypt = useEncrypt()
+  const decryptPublicValues = useDecryptPublicValues()
   const shield = useShield({ address: SEPOLIA_CUSDT })
   const unshieldAll = useUnshieldAll(SEPOLIA_CUSDT)
   const registryAddress = useWrappersRegistryAddress()
@@ -462,10 +468,36 @@ export default function App() {
   const shareSeconds =
     twabHandle && decrypted ? (decrypted[twabHandle] as bigint | undefined) : undefined
 
+  async function refreshBalances() {
+    await queryClient.invalidateQueries()
+    await Promise.all([
+      refetchUsdt(),
+      refetchAllow(),
+      refetchCusdt(),
+      refetchPool(),
+      refetchShareHandle(),
+      refetchWinHandle(),
+      refetchTwabHandle(),
+      refetchDecrypt(),
+    ])
+  }
+
+  function scheduleBalanceRefresh() {
+    void refreshBalances()
+    // FHE handles / decrypt cache often settle a beat after the receipt.
+    window.setTimeout(() => {
+      void refreshBalances()
+    }, 400)
+    window.setTimeout(() => {
+      void refreshBalances()
+    }, 1_500)
+  }
+
   useEffect(() => {
     if (mined && txHash && txPhase === 'confirming') {
       setTxPhase('done')
       setStatus((s) => (s ? `${s} confirmed` : 'Confirmed'))
+      scheduleBalanceRefresh()
     }
   }, [mined, txHash, txPhase])
 
@@ -475,8 +507,6 @@ export default function App() {
     setError(explainError(receiptError))
   }, [txFailed, receiptError])
 
-  useEffect(() => subscribePasskeyGate(setPasskeyReady), [])
-
   useEffect(() => {
     if (txPhase !== 'done') return
     const id = window.setTimeout(() => {
@@ -485,37 +515,6 @@ export default function App() {
     }, 10_000)
     return () => window.clearTimeout(id)
   }, [txPhase])
-
-  useEffect(() => {
-    if (!mined || !txHash) return
-    const refresh = () => {
-      void queryClient.invalidateQueries()
-      void refetchUsdt()
-      void refetchAllow()
-      void refetchCusdt()
-      void refetchPool()
-      void refetchShareHandle()
-      void refetchWinHandle()
-      void refetchTwabHandle()
-      void refetchDecrypt()
-    }
-    refresh()
-    // FHE handles often land a beat after the receipt.
-    const again = window.setTimeout(refresh, 2500)
-    return () => window.clearTimeout(again)
-  }, [
-    mined,
-    txHash,
-    queryClient,
-    refetchUsdt,
-    refetchAllow,
-    refetchCusdt,
-    refetchPool,
-    refetchShareHandle,
-    refetchWinHandle,
-    refetchTwabHandle,
-    refetchDecrypt,
-  ])
 
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -540,6 +539,91 @@ export default function App() {
         `${action} needs the pool approved for ${formatUnits(need)} public USDT. Current allowance is ${formatUnits(have)}. Click Approve, confirm MetaMask, then ${action}.`,
       )
     }
+  }
+
+  /** Openfort: batch approve+wrap in one UserOp (Zama hooks still hit /v2/transactions). */
+  async function shieldViaSponsored(need: bigint): Promise<Hex> {
+    if (!publicClient || !address) throw new Error('Wallet is not connected yet.')
+    const wrapperAllowance = await publicClient.readContract({
+      address: SEPOLIA_USDT,
+      abi: erc20Abi,
+      functionName: 'allowance',
+      args: [address, SEPOLIA_CUSDT],
+    })
+    const wrap = {
+      address: SEPOLIA_CUSDT,
+      abi: confidentialWrapperAbi,
+      functionName: 'wrap',
+      args: [address, need],
+    } as const
+    if (wrapperAllowance < need) {
+      return writeBatch([
+        {
+          address: SEPOLIA_USDT,
+          abi: erc20Abi,
+          functionName: 'approve',
+          args: [SEPOLIA_CUSDT, maxUint256],
+        },
+        wrap,
+      ])
+    }
+    return write(wrap)
+  }
+
+  /** Openfort: encrypt locally, then confidentialTransferAndCall via UserOp. */
+  async function depositViaSponsored(need: bigint): Promise<Hex> {
+    if (!address) throw new Error('Wallet is not connected yet.')
+    if (need === 0n) throw new Error('Enter an amount to deposit.')
+    const { encryptedValues, inputProof } = await encrypt.mutateAsync({
+      values: [{ value: need, type: 'euint64' }],
+      contractAddress: SEPOLIA_CUSDT,
+      userAddress: address,
+    })
+    const handle = encryptedValues[0]
+    if (!handle) throw new Error('Encryption produced no handle.')
+    return write({
+      address: SEPOLIA_CUSDT,
+      abi: confidentialWrapperAbi,
+      functionName: 'confidentialTransferAndCall',
+      args: [POOL_ADDRESS, handle, inputProof, DEPOSIT_DATA],
+    })
+  }
+
+  /** Openfort: unwrapAll → public decrypt → finalizeUnwrap (same two-phase as Zama SDK). */
+  async function unshieldAllViaSponsored(): Promise<Hex> {
+    if (!publicClient || !address) throw new Error('Wallet is not connected yet.')
+    const balanceHandle = await publicClient.readContract({
+      address: SEPOLIA_CUSDT,
+      abi: confidentialWrapperAbi,
+      functionName: 'confidentialBalanceOf',
+      args: [address],
+    })
+    if (balanceHandle === ZERO_HANDLE) throw new Error('No cUSDT to unshield.')
+
+    const unwrapHash = await write({
+      address: SEPOLIA_CUSDT,
+      abi: confidentialWrapperAbi,
+      functionName: 'unwrapAll',
+      args: [address, address, balanceHandle],
+    })
+    await waitReceipt(unwrapHash)
+    const receipt = await publicClient.getTransactionReceipt({ hash: unwrapHash })
+    const requested = findUnwrapRequested(receipt.logs)
+    if (!requested) throw new Error('UnwrapRequested event missing from the unwrap receipt.')
+
+    const requestId = requested.unwrapRequestId
+    setStatus('Unshield — decrypting')
+    const decrypted = await decryptPublicValues.mutateAsync([requestId])
+    const raw = decrypted.clearValues[requestId]
+    const cleartext = typeof raw === 'bigint' ? raw : BigInt(raw ?? 0)
+
+    setStatus('Unshield — finalize')
+    return write({
+      address: SEPOLIA_CUSDT,
+      abi: confidentialWrapperAbi,
+      functionName: 'finalizeUnwrap',
+      args: [requestId, cleartext, decrypted.decryptionProof],
+    })
   }
 
   async function approvePoolUsdt(need: bigint): Promise<Hex | void> {
@@ -580,14 +664,20 @@ export default function App() {
       const hash = await fn()
       if (hash) {
         setTxHash(hash)
-        setTxPhase('confirming')
+        // Openfort UserOps already waited for inclusion before returning the hash.
+        if (openfortSponsored) {
+          setTxPhase('done')
+          setStatus(`${label} confirmed`)
+          scheduleBalanceRefresh()
+        } else {
+          setTxPhase('confirming')
+        }
       } else {
         setTxPhase('done')
         setStatus(`${label} done`)
+        scheduleBalanceRefresh()
       }
     } catch (e) {
-      cancelPasskeyGate()
-      setPasskeyReady(false)
       setError(explainError(e))
       setTxPhase('error')
       setStatus('')
@@ -599,6 +689,7 @@ export default function App() {
     setTxHash(hash)
     setTxPhase('confirming')
     await publicClient.waitForTransactionReceipt({ hash })
+    scheduleBalanceRefresh()
   }
 
   async function scanLeftOnchain(): Promise<bigint> {
@@ -675,6 +766,7 @@ export default function App() {
     writing ||
     waiting ||
     encrypt.isPending ||
+    decryptPublicValues.isPending ||
     shield.isPending ||
     unshieldAll.isPending ||
     depositCall.isPending
@@ -992,6 +1084,7 @@ export default function App() {
 
             {board === 'save' && (
               <div className="board">
+                {openfortConfigured && isConnected && <OpenfortWalletHint />}
                 <p className="now-line">
                   {beat === 'signin' && 'Next: sign in so we know which wallet to mint to.'}
                   {beat === 'reveal' && 'Next: show balances. One signature, then this page can read your encrypted numbers.'}
@@ -1010,7 +1103,7 @@ export default function App() {
 
                 <ActionRow
                   title="Sign in"
-                  does="Email OTP is the working path: Openfort passkey, sponsored gas. Stay on laternpool.xyz (not www). If the modal says origin is not allowed, add https://laternpool.xyz in Openfort Security. MetaMask SIWE is optional and fails without that origin."
+                  does="Email OTP is the working path: Openfort passkey, sponsored gas. Same email on a new device or on localhost creates a new wallet unless you recover the original passkey (or set a password). Use laternpool.xyz on the first device to keep the same address."
                   active={beat === 'signin'}
                   done={isConnected}
                 >
@@ -1048,7 +1141,7 @@ export default function App() {
 
                 <ActionRow
                   title="Claim test USDT"
-                  does="Mints 100 public USDTMock to you. Official Zama faucet. Email login: wait ~30s, then click Approve passkey on the yellow dialog in the center of the screen — not this Claim button."
+                  does="Mints 100 public USDTMock to you. Official Zama faucet. Email login: stay on this tab — the browser should ask for your passkey."
                   active={beat === 'claim'}
                   done={hasUsdt || hasCusdt || inVault}
                 >
@@ -1092,6 +1185,7 @@ export default function App() {
                             `Shield uses public USDT (${formatUnits(have)} on hand, ${formatUnits(need)} needed). Claim test USDT first.`,
                           )
                         }
+                        if (openfortSponsored) return shieldViaSponsored(need)
                         const { txHash: hash } = await shield.mutateAsync({ amount: need })
                         return hash
                       })
@@ -1113,9 +1207,11 @@ export default function App() {
                     disabled={!isConnected || busy || !poolReady}
                     onClick={() =>
                       run('Deposit', async () => {
+                        const need = parseUnits(amount)
+                        if (openfortSponsored) return depositViaSponsored(need)
                         const { txHash: hash } = await depositCall.mutateAsync({
                           to: POOL_ADDRESS,
-                          amount: parseUnits(amount),
+                          amount: need,
                           data: DEPOSIT_DATA,
                           skipBalanceCheck: false,
                         })
@@ -1469,6 +1565,7 @@ export default function App() {
                     disabled={!isConnected || busy}
                     onClick={() =>
                       run('Unshield all', async () => {
+                        if (openfortSponsored) return unshieldAllViaSponsored()
                         const { txHash: hash } = await unshieldAll.mutateAsync()
                         return hash
                       })
@@ -1910,11 +2007,7 @@ export default function App() {
         phase={txPhase}
         hash={txHash}
         error={error}
-        passkeyReady={passkeyReady}
-        onApprovePasskey={confirmPasskeyGate}
         onDismiss={() => {
-          cancelPasskeyGate()
-          setPasskeyReady(false)
           setTxPhase('idle')
           setStatus('')
           setError('')

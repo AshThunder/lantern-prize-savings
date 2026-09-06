@@ -21,7 +21,6 @@ import {
   RPC_URL,
   openfortConfigured,
 } from './config'
-import './openfortPasskeyGate'
 
 function publicAppUrl() {
   if (typeof window === 'undefined') return 'https://laternpool.xyz'

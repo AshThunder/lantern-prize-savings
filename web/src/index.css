@@ -972,46 +972,6 @@ button.pill.addr:hover {
   }
 }
 
-.passkey-back {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  display: grid;
-  place-items: center;
-  padding: 16px;
-  background: rgba(12, 12, 12, 0.72);
-}
-
-.passkey-sheet {
-  position: relative;
-  width: min(420px, 100%);
-  padding: 20px;
-  border: 3px solid #000;
-  background: var(--yellow);
-  color: var(--ink);
-  box-shadow: 8px 8px 0 var(--magenta);
-}
-
-.passkey-x {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-}
-
-.passkey-sheet h2 {
-  margin: 4px 0 0;
-  font-family: 'Archivo Black', Archivo, sans-serif;
-  font-size: 28px;
-  line-height: 1;
-  text-transform: uppercase;
-}
-
-.passkey-sheet p {
-  margin: 12px 0 0;
-  font-size: 15px;
-  font-weight: 600;
-}
-
 .tx-dock {
   position: fixed;
   right: 16px;
@@ -1051,22 +1011,6 @@ button.pill.addr:hover {
   margin-top: 10px;
   color: inherit;
   font-weight: 800;
-}
-
-.tx-passkey {
-  display: block;
-  width: 100%;
-  margin-top: 12px;
-  padding: 10px 12px;
-  border: 3px solid #000;
-  background: var(--orange);
-  color: #fff;
-  font: inherit;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  cursor: pointer;
-  box-shadow: 4px 4px 0 var(--magenta);
 }
 
 .tx-x {
@@ -1419,8 +1363,7 @@ button.pill.addr:hover {
   .play-story strong { font-size: 14px; }
   .board-switch { gap: 8px; }
   .board-switch button,
-  .btn,
-  .tx-passkey {
+  .btn {
     min-height: 44px;
   }
   .field { width: 100%; }

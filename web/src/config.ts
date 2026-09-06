@@ -81,6 +81,82 @@ export const erc20Abi = [
   },
 ] as const
 
+/** ERC-7984 wrapper methods used by Openfort's local UserOp path (not wagmi). */
+export const confidentialWrapperAbi = [
+  {
+    type: 'function',
+    name: 'wrap',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'to', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+    ],
+    outputs: [{ name: '', type: 'bytes32' }],
+  },
+  {
+    type: 'function',
+    name: 'confidentialTransferAndCall',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'to', type: 'address' },
+      { name: 'encryptedAmount', type: 'bytes32' },
+      { name: 'inputProof', type: 'bytes' },
+      { name: 'data', type: 'bytes' },
+    ],
+    outputs: [{ name: 'transferred', type: 'bytes32' }],
+  },
+  {
+    type: 'function',
+    name: 'unwrap',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'from', type: 'address' },
+      { name: 'to', type: 'address' },
+      { name: 'encryptedAmount', type: 'bytes32' },
+      { name: 'inputProof', type: 'bytes' },
+    ],
+    outputs: [{ name: '', type: 'bytes32' }],
+  },
+  {
+    type: 'function',
+    name: 'unwrapAll',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'from', type: 'address' },
+      { name: 'to', type: 'address' },
+      { name: 'amount', type: 'bytes32' },
+    ],
+    outputs: [{ name: '', type: 'bytes32' }],
+  },
+  {
+    type: 'function',
+    name: 'finalizeUnwrap',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'unwrapRequestId', type: 'bytes32' },
+      { name: 'unwrapAmountCleartext', type: 'uint64' },
+      { name: 'decryptionProof', type: 'bytes' },
+    ],
+    outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'confidentialBalanceOf',
+    stateMutability: 'view',
+    inputs: [{ name: 'account', type: 'address' }],
+    outputs: [{ name: '', type: 'bytes32' }],
+  },
+  {
+    type: 'event',
+    name: 'UnwrapRequested',
+    inputs: [
+      { name: 'receiver', type: 'address', indexed: true },
+      { name: 'unwrapRequestId', type: 'bytes32', indexed: true },
+      { name: 'amount', type: 'bytes32', indexed: false },
+    ],
+  },
+] as const
+
 export const nftAbi = [
   {
     type: 'function',
@@ -189,18 +265,10 @@ export function explainError(err: unknown): string {
   if (/user rejected|denied/i.test(raw)) return 'Wallet rejected the request.'
   if (/origin.*not allowed|is not allowed|allowed origins/i.test(raw))
     return 'Openfort rejected this site origin. In dashboard.openfort.io/security add https://laternpool.xyz and https://www.laternpool.xyz (and http://localhost:5173 for local). Then use email OTP again — not MetaMask SIWE.'
-  if (/Passkey approval cancelled/i.test(raw))
-    return 'Passkey approval was dismissed. Click Claim again. When the yellow Approve passkey dialog appears (center of the screen, not the Claim button), click it.'
-  if (/did not return a hash to sign/i.test(raw))
-    return 'Openfort created the UserOp but did not return a hash to sign. Dismiss this pink card, click Claim again, and use the yellow Approve passkey dialog when it appears in the center of the screen.'
-  if (/No transaction receipt received/i.test(raw))
-    return 'Openfort signed but did not return a receipt yet. Wait a minute, then check the wallet USDT balance or retry Claim. This pink card is an error — not the passkey step.'
-  if (/timeout/i.test(raw))
-    return 'Openfort needed more than 30s to prepare the mint. Dismiss this pink card, click Claim again, and stay on the yellow dialog until Approve passkey appears.'
-  if (/Transaction creation failed/i.test(raw))
-    return 'Openfort rejected the mint before a receipt came back — often a 30s prepare timeout. Dismiss, click Claim again, and stay on the yellow dialog until Approve passkey appears.'
-  if (/Iframe signer did not respond|NotAllowedError|passkey/i.test(raw))
-    return 'The browser needs a fresh click for the passkey. Dismiss this pink card, click Claim again, then click Approve passkey on the yellow dialog in the center of the screen — not the Claim button.'
+  if (/Passkey approval cancelled|NotAllowedError|Iframe signer did not respond/i.test(raw))
+    return 'Passkey was dismissed or timed out. Stay on this tab and click the action again so the browser can ask for your passkey.'
+  if (/Transaction creation failed|Network Error/i.test(raw))
+    return raw.slice(0, 280) || 'Openfort could not create the transaction. Stay on this tab and try again.'
   if (/expired|sign in again/i.test(raw))
     return 'Sign in again so Openfort can sponsor gas, or pay Sepolia ETH from this wallet.'
   if (/insufficient funds|insufficient.*gas|exceeds the balance of the account/i.test(raw))

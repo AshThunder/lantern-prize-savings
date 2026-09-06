@@ -11,6 +11,7 @@ interface ImportMetaEnv {
   readonly VITE_OPENFORT_SHIELD_KEY?: string
   readonly VITE_OPENFORT_FEE_SPONSORSHIP_ID?: string
   readonly VITE_FORWARDER_ADDRESS?: string
+  readonly VITE_CALIBUR_IMPLEMENTATION?: string
 }
 
 interface ImportMeta {

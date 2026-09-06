@@ -1,12 +1,12 @@
+import { useState } from 'react'
 import { type Abi, type Address, type Hex } from 'viem'
 import { useAccount, usePublicClient, useWriteContract } from 'wagmi'
-import { isOpenfortConnector } from './config'
+import { isOpenfortConnector, openfortConfigured, openfortGasless } from './config'
+import { toCall } from './openfort/calibur'
+import { useSponsoredSender } from './openfort/useSponsoredSender'
 
 /** EIP-7825 per-tx cap. MetaMask still defaults failed estimates to 21M. */
 const TX_GAS_CAP = 16_777_216n
-/** Paymaster-friendly ceiling. Do not send the MetaMask 16.7M cap to Openfort. */
-const OPENFORT_GAS_CAP = 2_000_000n
-const OPENFORT_GAS_FALLBACK = 400_000n
 
 type WriteArgs = {
   address: Address
@@ -29,40 +29,14 @@ function isExecutionRevert(err: unknown): boolean {
   )
 }
 
-export function useSponsoredWrite() {
-  const { address, connector } = useAccount()
+function useInjectedSponsoredWrite() {
+  const { address } = useAccount()
   const publicClient = usePublicClient()
   const { writeContractAsync, isPending } = useWriteContract()
-  const openfortWallet = isOpenfortConnector(connector)
 
   async function write(params: WriteArgs): Promise<Hex> {
-    // Tether-style USDT reverts estimateGas when changing a non-zero allowance.
-    // Send a small fixed limit so Approve actually reaches MetaMask.
     if (params.functionName === 'approve') {
       return writeContractAsync({ ...params, gas: 100_000n } as never)
-    }
-
-    if (openfortWallet) {
-      // Estimate on the public RPC so wagmi does not call Openfort eth_estimateGas
-      // (another ~30s UserOp) before the real send. That delay drops the passkey.
-      let gas = OPENFORT_GAS_FALLBACK
-      if (publicClient && address) {
-        try {
-          const estimate = await publicClient.estimateContractGas({
-            address: params.address,
-            abi: params.abi,
-            functionName: params.functionName as never,
-            args: params.args as never,
-            account: address,
-          })
-          const buffered = (estimate * 150n) / 100n
-          gas = buffered > OPENFORT_GAS_CAP ? OPENFORT_GAS_CAP : buffered
-        } catch (err) {
-          if (isExecutionRevert(err)) throw err
-          gas = OPENFORT_GAS_CAP
-        }
-      }
-      return writeContractAsync({ ...params, gas } as never)
     }
 
     let gas = TX_GAS_CAP
@@ -85,9 +59,81 @@ export function useSponsoredWrite() {
     return writeContractAsync({ ...params, gas } as never)
   }
 
+  async function writeBatch(calls: WriteArgs[]): Promise<Hex> {
+    let last: Hex = '0x'
+    for (const call of calls) {
+      last = await write(call)
+    }
+    return last
+  }
+
   async function faucet(_address: Address, fallback: () => Promise<Hex>): Promise<Hex> {
     return fallback()
   }
 
-  return { write, faucet, isPending }
+  return { write, writeBatch, faucet, isPending, openfortSponsored: false }
+}
+
+function useOpenfortSponsoredWrite() {
+  const { connector } = useAccount()
+  const publicClient = usePublicClient()
+  const send = useSponsoredSender(publicClient)
+  const injected = useInjectedSponsoredWrite()
+  const [pending, setPending] = useState(false)
+  const openfortWallet = isOpenfortConnector(connector)
+  const openfortSponsored = openfortWallet && openfortGasless
+
+  async function write(params: WriteArgs): Promise<Hex> {
+    if (!openfortSponsored) return injected.write(params)
+    setPending(true)
+    try {
+      return await send([
+        toCall({
+          address: params.address,
+          abi: params.abi,
+          functionName: params.functionName,
+          args: params.args,
+        }),
+      ])
+    } finally {
+      setPending(false)
+    }
+  }
+
+  async function writeBatch(calls: WriteArgs[]): Promise<Hex> {
+    if (!openfortSponsored) return injected.writeBatch(calls)
+    setPending(true)
+    try {
+      return await send(
+        calls.map((params) =>
+          toCall({
+            address: params.address,
+            abi: params.abi,
+            functionName: params.functionName,
+            args: params.args,
+          }),
+        ),
+      )
+    } finally {
+      setPending(false)
+    }
+  }
+
+  async function faucet(_address: Address, fallback: () => Promise<Hex>): Promise<Hex> {
+    return fallback()
+  }
+
+  return {
+    write,
+    writeBatch,
+    faucet,
+    isPending: pending || injected.isPending,
+    openfortSponsored,
+  }
+}
+
+/** `openfortConfigured` is fixed for the lifetime of the bundle. */
+export function useSponsoredWrite() {
+  if (openfortConfigured) return useOpenfortSponsoredWrite()
+  return useInjectedSponsoredWrite()
 }
