@@ -195,8 +195,10 @@ export function explainError(err: unknown): string {
     return 'Openfort created the UserOp but did not return a hash to sign. Dismiss this pink card, click Claim again, and use the yellow Approve passkey dialog when it appears in the center of the screen.'
   if (/No transaction receipt received/i.test(raw))
     return 'Openfort signed but did not return a receipt yet. Wait a minute, then check the wallet USDT balance or retry Claim. This pink card is an error — not the passkey step.'
+  if (/timeout/i.test(raw))
+    return 'Openfort needed more than 30s to prepare the mint. Dismiss this pink card, click Claim again, and stay on the yellow dialog until Approve passkey appears.'
   if (/Transaction creation failed/i.test(raw))
-    return 'Openfort could not create the transaction. Dismiss and try Claim again. If it keeps failing, sign out and sign in with email OTP.'
+    return 'Openfort rejected the mint before a receipt came back — often a 30s prepare timeout. Dismiss, click Claim again, and stay on the yellow dialog until Approve passkey appears.'
   if (/Iframe signer did not respond|NotAllowedError|passkey/i.test(raw))
     return 'The browser needs a fresh click for the passkey. Dismiss this pink card, click Claim again, then click Approve passkey on the yellow dialog in the center of the screen — not the Claim button.'
   if (/expired|sign in again/i.test(raw))
