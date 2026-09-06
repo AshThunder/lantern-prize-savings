@@ -1048,7 +1048,7 @@ export default function App() {
 
                 <ActionRow
                   title="Claim test USDT"
-                  does="Mints 100 public USDTMock to you. Official Zama faucet. Email login: wait ~30s, then click Approve passkey on the yellow card."
+                  does="Mints 100 public USDTMock to you. Official Zama faucet. Email login: wait ~30s, then click Approve passkey on the yellow dialog in the center of the screen — not this Claim button."
                   active={beat === 'claim'}
                   done={hasUsdt || hasCusdt || inVault}
                 >

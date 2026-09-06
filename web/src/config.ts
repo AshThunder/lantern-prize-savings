@@ -144,6 +144,12 @@ export function chainLabel(chainId?: number): string {
   return CHAIN_NAMES[chainId] ?? `Chain ${chainId}`
 }
 
+export function isOpenfortConnector(connector?: { id?: string; name?: string } | null): boolean {
+  const id = connector?.id ?? ''
+  const name = connector?.name ?? ''
+  return /openfort/i.test(id) || /openfort/i.test(name)
+}
+
 function errorBlob(err: unknown): string {
   if (err == null) return ''
   if (typeof err !== 'object') return String(err)
@@ -183,13 +189,16 @@ export function explainError(err: unknown): string {
   if (/user rejected|denied/i.test(raw)) return 'Wallet rejected the request.'
   if (/origin.*not allowed|is not allowed|allowed origins/i.test(raw))
     return 'Openfort rejected this site origin. In dashboard.openfort.io/security add https://laternpool.xyz and https://www.laternpool.xyz (and http://localhost:5173 for local). Then use email OTP again — not MetaMask SIWE.'
-  if (/Passkey approval cancelled/i.test(raw)) return 'Passkey approval was dismissed. Click Claim again, wait for Approve passkey, then click it.'
-  if (
-    /Transaction creation failed|No transaction receipt received|Iframe signer did not respond|NotAllowedError|passkey/i.test(
-      raw,
-    )
-  )
-    return 'Openfort prepared the transaction. When the yellow card shows Approve passkey, click it — the browser needs that fresh click after the ~30s prepare. Nothing to change in the Openfort dashboard.'
+  if (/Passkey approval cancelled/i.test(raw))
+    return 'Passkey approval was dismissed. Click Claim again. When the yellow Approve passkey dialog appears (center of the screen, not the Claim button), click it.'
+  if (/did not return a hash to sign/i.test(raw))
+    return 'Openfort created the UserOp but did not return a hash to sign. Dismiss this pink card, click Claim again, and use the yellow Approve passkey dialog when it appears in the center of the screen.'
+  if (/No transaction receipt received/i.test(raw))
+    return 'Openfort signed but did not return a receipt yet. Wait a minute, then check the wallet USDT balance or retry Claim. This pink card is an error — not the passkey step.'
+  if (/Transaction creation failed/i.test(raw))
+    return 'Openfort could not create the transaction. Dismiss and try Claim again. If it keeps failing, sign out and sign in with email OTP.'
+  if (/Iframe signer did not respond|NotAllowedError|passkey/i.test(raw))
+    return 'The browser needs a fresh click for the passkey. Dismiss this pink card, click Claim again, then click Approve passkey on the yellow dialog in the center of the screen — not the Claim button.'
   if (/expired|sign in again/i.test(raw))
     return 'Sign in again so Openfort can sponsor gas, or pay Sepolia ETH from this wallet.'
   if (/insufficient funds|insufficient.*gas|exceeds the balance of the account/i.test(raw))

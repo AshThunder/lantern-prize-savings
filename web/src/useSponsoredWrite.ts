@@ -1,5 +1,6 @@
 import { type Abi, type Address, type Hex } from 'viem'
 import { useAccount, usePublicClient, useWriteContract } from 'wagmi'
+import { isOpenfortConnector } from './config'
 
 /** EIP-7825 per-tx cap. MetaMask still defaults failed estimates to 21M. */
 const TX_GAS_CAP = 16_777_216n
@@ -32,7 +33,7 @@ export function useSponsoredWrite() {
   const { address, connector } = useAccount()
   const publicClient = usePublicClient()
   const { writeContractAsync, isPending } = useWriteContract()
-  const openfortWallet = connector?.id === 'xyz.openfort'
+  const openfortWallet = isOpenfortConnector(connector)
 
   async function write(params: WriteArgs): Promise<Hex> {
     // Tether-style USDT reverts estimateGas when changing a non-zero allowance.

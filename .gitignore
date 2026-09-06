@@ -22,3 +22,4 @@ tmp
 # hardhat deploy keys stay local; addresses are in README
 contracts/deployments
 web/dist
+.vercel

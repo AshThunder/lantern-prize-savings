@@ -15,7 +15,8 @@ export function subscribePasskeyGate(listener: Listener) {
 }
 
 export function confirmPasskeyGate() {
-  pending?.resolve()
+  if (!pending) return
+  pending.resolve()
   pending = null
   notify(false)
 }
