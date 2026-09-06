@@ -29,7 +29,7 @@ const wagmiConfig = createConfig(
     ? getDefaultConfig({
         appName: 'Lantern',
         appDescription: 'Confidential prize savings on the Zama Protocol',
-        appUrl: 'https://lantern-prize.vercel.app',
+        appUrl: 'https://laternpool.xyz',
         chains: [sepolia],
         transports,
       })

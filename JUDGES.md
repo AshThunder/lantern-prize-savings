@@ -2,9 +2,9 @@
 
 Zama Developer Program Mainnet Season 4 · Sepolia
 
-**Live:** [https://lantern-prize.vercel.app](https://lantern-prize.vercel.app)
+**Live:** [https://laternpool.xyz](https://laternpool.xyz)
 
-**How (every button):** [lantern-prize.vercel.app/#guide](https://lantern-prize.vercel.app/#guide)
+**How (every button):** [laternpool.xyz/#guide](https://laternpool.xyz/#guide)
 
 **Source:** [github.com/AshThunder/lantern-prize-savings](https://github.com/AshThunder/lantern-prize-savings)
 

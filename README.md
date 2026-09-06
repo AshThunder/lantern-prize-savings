@@ -4,11 +4,11 @@ A [PoolTogether V5](https://dev.pooltogether.com/protocol/design/) prize vault o
 
 **Track:** Zama Developer Program Mainnet Season 4 · Sepolia
 
-**Live app:** [https://lantern-prize.vercel.app](https://lantern-prize.vercel.app)
+**Live app:** [https://laternpool.xyz](https://laternpool.xyz)
 
 **Source:** [github.com/AshThunder/lantern-prize-savings](https://github.com/AshThunder/lantern-prize-savings)
 
-**How (button map):** [lantern-prize.vercel.app/#guide](https://lantern-prize.vercel.app/#guide)
+**How (button map):** [laternpool.xyz/#guide](https://laternpool.xyz/#guide)
 
 **Docs:** [PITCH.md](./PITCH.md) · [JUDGES.md](./JUDGES.md) · [TWAB.md](./TWAB.md) · [SECURITY.md](./SECURITY.md) · [CONTRIBUTING.md](./CONTRIBUTING.md) · [LICENSE.md](./LICENSE.md) · [web/README.md](./web/README.md) · [contracts/README.md](./contracts/README.md)
 

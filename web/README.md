@@ -2,7 +2,7 @@
 
 Vite + React frontend for the confidential prize vault. Talks to Sepolia with [`@zama-fhe/sdk@3.5.1`](https://www.npmjs.com/package/@zama-fhe/sdk) and Openfort for email / passkey login.
 
-Live: [lantern-prize.vercel.app](https://lantern-prize.vercel.app) · How: [/#guide](https://lantern-prize.vercel.app/#guide)
+Live: [laternpool.xyz](https://laternpool.xyz) · How: [/#guide](https://laternpool.xyz/#guide)
 
 Design, replica map, and Sepolia addresses live in the [root README](../README.md). Judge click path: [JUDGES.md](../JUDGES.md).
 
