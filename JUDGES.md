@@ -8,7 +8,7 @@ Zama Developer Program Mainnet Season 4 · Sepolia
 
 **Source:** [github.com/AshThunder/lantern-prize-savings](https://github.com/AshThunder/lantern-prize-savings)
 
-Local: `cd web && npm ci && npm run dev` then **http://localhost:5173**. Not `127.0.0.1` (Openfort rejects it).
+Local: `cd web && npm ci && npm run dev` then [http://localhost:5173](http://localhost:5173). Not `127.0.0.1` (Openfort rejects it).
 
 ## What this is
 

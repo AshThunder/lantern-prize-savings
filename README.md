@@ -13,21 +13,21 @@ A [PoolTogether V5](https://dev.pooltogether.com/protocol/design/) prize vault o
 **Docs:** · [JUDGES.md](./JUDGES.md) · [TWAB.md](./TWAB.md) · [SECURITY.md](./SECURITY.md) · [CONTRIBUTING.md](./CONTRIBUTING.md) · [LICENSE.md](./LICENSE.md) · [web/README.md](./web/README.md) · [contracts/README.md](./contracts/README.md)
 
 
-| Contract                                         | Sepolia                                                                                                                         |
-| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
-| **ConfidentialPrizePool** (`FHE.rand` selection) | `[0x96B98e6ae197bD7738af3ff85f503Cb09D077caC](https://sepolia.etherscan.io/address/0x96B98e6ae197bD7738af3ff85f503Cb09D077caC)` |
-| PrizeToNftHolderHook                             | `[0x400382Ea48EfC27a6976E50471438A5dF1730A75](https://sepolia.etherscan.io/address/0x400382Ea48EfC27a6976E50471438A5dF1730A75)` |
-| MockDuckNFT                                      | `[0x429eB02B06B5DD98deCE25899E49a17E0b6BB035](https://sepolia.etherscan.io/address/0x429eB02B06B5DD98deCE25899E49a17E0b6BB035)` |
-| LanternForwarder (onchain, unused by UI)         | `[0x75E360fd3e87466d7f6e95A85688D3e8F5048921](https://sepolia.etherscan.io/address/0x75E360fd3e87466d7f6e95A85688D3e8F5048921)` |
+| Contract                                         | Sepolia                                                                                                                       |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| **ConfidentialPrizePool** (`FHE.rand` selection) | [0x96B98e6ae197bD7738af3ff85f503Cb09D077caC](https://sepolia.etherscan.io/address/0x96B98e6ae197bD7738af3ff85f503Cb09D077caC) |
+| PrizeToNftHolderHook                             | [0x400382Ea48EfC27a6976E50471438A5dF1730A75](https://sepolia.etherscan.io/address/0x400382Ea48EfC27a6976E50471438A5dF1730A75) |
+| MockDuckNFT                                      | [0x429eB02B06B5DD98deCE25899E49a17E0b6BB035](https://sepolia.etherscan.io/address/0x429eB02B06B5DD98deCE25899E49a17E0b6BB035) |
+| LanternForwarder (onchain, unused by UI)         | [0x75E360fd3e87466d7f6e95A85688D3e8F5048921](https://sepolia.etherscan.io/address/0x75E360fd3e87466d7f6e95A85688D3e8F5048921) |
 
 
-Official Zama tokens (not custom): USDT `[0xa7dA…e9b0](https://sepolia.etherscan.io/address/0xa7dA08FafDC9097Cc0E7D4f113A61e31d7e8e9b0)` · cUSDT `[0x4E7B…4491](https://sepolia.etherscan.io/address/0x4E7B06D78965594eB5EF5414c357ca21E1554491)` · Wrappers Registry `[0x2f07…128e](https://sepolia.etherscan.io/address/0x2f0750Bbb0A246059d80e94c454586a7F27a128e)`
+Official Zama tokens (not custom): USDT [0xa7dA…e9b0](https://sepolia.etherscan.io/address/0xa7dA08FafDC9097Cc0E7D4f113A61e31d7e8e9b0) · cUSDT [0x4E7B…4491](https://sepolia.etherscan.io/address/0x4E7B06D78965594eB5EF5414c357ca21E1554491) · Wrappers Registry [0x2f07…128e](https://sepolia.etherscan.io/address/0x2f0750Bbb0A246059d80e94c454586a7F27a128e)
 
-SDK: `[@zama-fhe/sdk@3.5.1](https://www.npmjs.com/package/@zama-fhe/sdk)` + `[@zama-fhe/react-sdk@3.5.1](https://www.npmjs.com/package/@zama-fhe/react-sdk)`. Contracts: `@fhevm/solidity@0.11.1` + `@openzeppelin/confidential-contracts@0.5.3`.
+SDK: [@zama-fhe/sdk@3.5.1](https://www.npmjs.com/package/@zama-fhe/sdk) + [@zama-fhe/react-sdk@3.5.1](https://www.npmjs.com/package/@zama-fhe/react-sdk). Contracts: `@fhevm/solidity@0.11.1` + `@openzeppelin/confidential-contracts@0.5.3`.
 
 ## For judges (3 minutes)
 
-Use **[http://localhost:5173](http://localhost:5173)** or the live URL. Not `127.0.0.1` (Openfort rejects it).
+Use **[https://laternpool.xyz](https://laternpool.xyz)** or local [http://localhost:5173](http://localhost:5173). Not `127.0.0.1` (Openfort rejects it).
 
 1. **Sign in** — email OTP (Openfort passkey, **gasless** on Sepolia) or MetaMask (needs Sepolia ETH). Switch to **Ethereum Sepolia**.
 2. **Save → Claim 100 USDT** (Zama mock faucet).
