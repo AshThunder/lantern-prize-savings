@@ -706,7 +706,7 @@ function AppBody() {
     for (let i = 0; i < 16; i++) {
       const left = await scanLeftOnchain()
       if (left === 0n) break
-      setStatus(`Snapshot TWAB · ${left.toString()} left`)
+      setStatus(`Select winner · ${left.toString()} left`)
       last = await write({
         address: POOL_ADDRESS,
         abi: poolAbi,
@@ -1389,8 +1389,8 @@ function AppBody() {
                     <span>
                       {drawing
                         ? scanLeft === 0
-                          ? 'TWAB snapshotted · finish like PoolTogether'
-                          : `Snapshot TWAB · ${scanPeople} depositor${scanPeople === 1 ? '' : 's'}`
+                          ? 'Selection done · finish like PoolTogether'
+                          : `Select winner · ${scanPeople} depositor${scanPeople === 1 ? '' : 's'}`
                         : `Phase ${phaseName} · draw #${openDraw?.toString() ?? '-'}`}
                     </span>
                     <div className="draw-meter" aria-hidden="true">
@@ -1496,7 +1496,7 @@ function AppBody() {
 
                 <ActionRow
                   title="Start draw"
-                  does="PoolTogether Draw Manager: startDraw closes the period and freezes the encrypted vault TWAB in one mul+add. Run draw finishes and checks your prize."
+                  does="PoolTogether Draw Manager: startDraw closes the period, freezes encrypted vault TWAB, and samples onchain FHE.rand targets. Run draw selects winners in batches, finishes, and checks your prize."
                 >
                   <button
                     className="btn"
@@ -1539,7 +1539,7 @@ function AppBody() {
 
                 <ActionRow
                   title="Finish draw"
-                  does="PoolTogether finishDraw. Vault TWAB was frozen at Start. Awards the draw, then checks this wallet’s prize. Claim on Save."
+                  does="PoolTogether finishDraw after selection. Awards the draw once remainingScan is 0, then checks this wallet’s prize. Claim on Save."
                 >
                   <button
                     className="btn cta"
@@ -1844,7 +1844,7 @@ function AppBody() {
                 <td>Twab Controller</td>
                 <td>
                   Running encrypted vault TWAB. <code>startDraw</code> freezes the total in one mul+add.
-                  User weight freezes at claim · <code>minHoldSeconds</code>
+                  User weight freezes during <code>stepDraw</code> · <code>minHoldSeconds</code>
                 </td>
                 <td>
                   <a
@@ -1915,7 +1915,7 @@ function AppBody() {
               <tr>
                 <td>Draw Manager start / finish</td>
                 <td>
-                  <code>startDraw</code> · <code>finalizeDraw</code> · <code>accruePrize</code> / <code>claim</code>
+                  <code>startDraw</code> · <code>stepDraw</code> · <code>finalizeDraw</code> · <code>claim</code>
                 </td>
                 <td>
                   <a
@@ -1941,8 +1941,8 @@ function AppBody() {
               <tr>
                 <td>RNG auction</td>
                 <td>
-                  Public <code>block.prevrandao</code> seed in <code>startDraw</code>; FHE ticket +{' '}
-                  <code>isWinner</code> at claim. No offchain RNG. Not <code>FHE.rand</code>
+                  Onchain <code>FHE.randEuint64</code> targets mapped onto encrypted TWAB;{' '}
+                  <code>stepDraw</code> cumulative selection. No offchain RNG.
                 </td>
                 <td>
                   <a href="https://dev.pooltogether.com/protocol/design/#rng-auction" target="_blank" rel="noreferrer">
@@ -1990,9 +1990,10 @@ function AppBody() {
               <tr>
                 <th>Fairness</th>
                 <td>
-                  Winner = PoolTogether isWinner: public prevrandao seed, FHE ticket on encrypted TWAB, vs
-                  weight × 75/25. Last-second deposits have zero weight. Check prize / claim to settle;
-                  losers should claim encrypted 0. No offchain RNG and no FHE.rand.
+                  Winner = onchain <code>FHE.randEuint64</code> targets over encrypted TWAB, cumulative
+                  selection in <code>stepDraw</code>. Grand 75% / daily 25% is the prize size split.
+                  Last-second deposits have zero weight. Check prize / claim to settle; losers can claim
+                  encrypted 0. No offchain RNG.
                 </td>
               </tr>
             </tbody>

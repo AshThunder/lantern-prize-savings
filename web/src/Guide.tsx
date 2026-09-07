@@ -143,7 +143,7 @@ export function Guide() {
             <Row name="Sponsor" tone="cta" does="Pays public USDT in. The pool wraps 90% to encrypted cUSDT so claims stay private. Prize size stays public. 10% stays unwrapped to pay whoever clicks Start or Finish." />
             <Row name="Liquidate" does="Same as Sponsor. Use one or the other for the same tokens." />
             <Row name="Start only" does="Closes the round (PoolTogether startDraw). Snapshots hook recipients. Does not finish." />
-            <Row name="Run draw" tone="cta" does="Start, snapshot encrypted TWAB, finish, check your prize. One click to run the whole round." />
+            <Row name="Run draw" tone="cta" does="Start, sample onchain FHE.rand, select winners over encrypted TWAB in batches, finish, check your prize. One click to run the whole round." />
             <Row name="Force + finish" tone="yellow" does="Owner only. Ignores the 60s clock so a video can award immediately, then finishes." />
             <Row name="Finish draw" tone="cta" does="PoolTogether finishDraw. Vault TWAB was already frozen at Start. Awards the draw, then Check prize on Save." />
           </div>

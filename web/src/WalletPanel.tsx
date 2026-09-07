@@ -182,10 +182,15 @@ export function TxDock({
           ? `${label || 'Transaction'} confirmed`
           : error || 'Transaction failed'
 
+  const busy = phase === 'working' || phase === 'confirming'
+
   return (
     <aside className={`tx-dock${phase === 'error' ? ' bad' : phase === 'done' ? ' ok' : ''}`} aria-live="polite">
       <div className="tx-dock-top">
-        <strong>{title}</strong>
+        <div className="tx-dock-title">
+          {busy && <span className="tx-spin" aria-hidden="true" />}
+          <strong>{title}</strong>
+        </div>
         <button type="button" className="tx-x" onClick={onDismiss} aria-label="Dismiss transaction status">
           ×
         </button>

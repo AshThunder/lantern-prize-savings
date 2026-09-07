@@ -995,6 +995,27 @@ button.pill.addr:hover {
   gap: 10px;
 }
 
+.tx-dock-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.tx-spin {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border: 3px solid #000;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: tx-spin 0.7s linear infinite;
+}
+
+@keyframes tx-spin {
+  to { transform: rotate(360deg); }
+}
+
 .tx-dock strong {
   font-size: 15px;
   line-height: 1.25;
@@ -1408,6 +1429,7 @@ button.pill.addr:hover {
 
 @media (prefers-reduced-motion: reduce) {
   .ticker span { animation: none; }
+  .tx-spin { animation: none; border-top-color: #000; opacity: 0.45; }
   .board-switch button:hover:not(.on),
   .board-switch button:active,
   .board-switch button.on {

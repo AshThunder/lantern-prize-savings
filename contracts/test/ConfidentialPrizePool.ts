@@ -34,6 +34,13 @@ function isTierPayout(n: bigint, grand: bigint, daily: bigint): boolean {
 
 async function closeDraw(pool: ConfidentialPrizePool): Promise<void> {
   await pool.snapshotPrizeRecipients();
+  for (let i = 0; i < 32; i++) {
+    const left = await pool.remainingScan();
+    if (left === 0n) break;
+    const n = left > 8n ? 8n : left;
+    await pool.stepDraw(Number(n));
+  }
+  expect(await pool.remainingScan()).to.eq(0n);
   await pool.finalizeDraw();
 }
 
@@ -248,7 +255,7 @@ describe("ConfidentialPrizePool", function () {
     const bobWin = await decryptEuint64(bobWinH, ctx.poolAddress, ctx.bob);
     expect(isTierPayout(aliceWin, grand, daily)).to.eq(true);
     expect(isTierPayout(bobWin, grand, daily)).to.eq(true);
-    expect(aliceWin + bobWin).to.be.lte(grand + daily);
+    expect(aliceWin + bobWin).to.eq(grand + daily);
     expect(grand + daily).to.eq(afterReserve(prize));
     expect(grand + daily).to.eq(await ctx.pool.lastDrawPrize());
 
@@ -271,6 +278,29 @@ describe("ConfidentialPrizePool", function () {
       ctx.alice,
     );
     expect(winAfter).to.eq(0n);
+  });
+
+  it("reverts finalizeDraw until selection scan completes", async function () {
+    const amount = 1_000_000n;
+    await mintWrap(ctx, ctx.alice, amount);
+    await confidentialDeposit(ctx, ctx.alice, amount);
+    const prize = 100_000n;
+    await ctx.usdt.mint(ctx.deployer.address, prize);
+    await ctx.usdt.connect(ctx.deployer).approve(ctx.poolAddress, prize);
+    await ctx.pool.connect(ctx.deployer).sponsor(prize);
+
+    await ctx.pool.startDraw();
+    expect(await ctx.pool.remainingScan()).to.eq(1n);
+    expect(await ctx.pool.canFinishDraw()).to.eq(false);
+    await expect(ctx.pool.finalizeDraw()).to.be.revertedWithCustomError(
+      ctx.pool,
+      "DrawScanIncomplete",
+    );
+    await ctx.pool.snapshotPrizeRecipients();
+    await ctx.pool.stepDraw(1);
+    expect(await ctx.pool.remainingScan()).to.eq(0n);
+    expect(await ctx.pool.canFinishDraw()).to.eq(true);
+    await expect(ctx.pool.finalizeDraw()).to.not.be.reverted;
   });
 
   it("exposes PoolTogether vault helpers at 1:1", async function () {
@@ -313,11 +343,13 @@ describe("ConfidentialPrizePool", function () {
     const [recipient] = await hook.beforeClaimPrize(ctx.alice.address, 0, 0, 0, ethers.ZeroAddress);
     expect(recipient).to.eq(ctx.bob.address);
 
-    await ctx.pool.snapshotPrizeRecipients();
-    await ctx.pool.finalizeDraw();
-    await expect(ctx.pool.accruePrize(ctx.alice.address))
+    await expect(ctx.pool.snapshotPrizeRecipients())
+      .to.emit(ctx.pool, "RecipientsSnapshotted")
+      .withArgs(1);
+    await expect(ctx.pool.stepDraw(1))
       .to.emit(ctx.pool, "PrizeAccrued")
       .withArgs(ctx.alice.address, ctx.bob.address);
+    await ctx.pool.finalizeDraw();
 
     await mintWrap(ctx, ctx.bob, 1n);
     const before = await decryptEuint64(
@@ -530,7 +562,7 @@ describe("ConfidentialPrizePool", function () {
     expect(await pool.getDrawPhase()).to.eq(3); // Finalized (no remaining prize)
   });
 
-  it("freezes vault TWAB in startDraw so finish does not walk the roster", async function () {
+  it("selects with FHE.rand over frozen TWAB and finishes only after a full scan", async function () {
     const amount = 1_000_000n;
     await mintWrap(ctx, ctx.alice, amount);
     await confidentialDeposit(ctx, ctx.alice, amount);
@@ -540,9 +572,9 @@ describe("ConfidentialPrizePool", function () {
     await ctx.pool.connect(ctx.deployer).sponsor(prize);
 
     await ctx.pool.startDraw();
-    expect(await ctx.pool.remainingScan()).to.eq(0n);
-    expect(await ctx.pool.canFinishDraw()).to.eq(true);
-    await ctx.pool.finalizeDraw();
+    expect(await ctx.pool.remainingScan()).to.eq(1n);
+    expect(await ctx.pool.canFinishDraw()).to.eq(false);
+    await closeDraw(ctx.pool);
     expect(await ctx.pool.getLastAwardedDrawId()).to.eq(1n);
 
     await ctx.pool.accruePrize(ctx.alice.address);
@@ -553,7 +585,7 @@ describe("ConfidentialPrizePool", function () {
     );
     const grand = await ctx.pool.lastGrandPrize();
     const daily = await ctx.pool.lastDailyPrize();
-    expect(isTierPayout(win, grand, daily)).to.eq(true);
+    expect(win).to.eq(grand + daily);
   });
 
   it("does not cap how many wallets can deposit", async function () {

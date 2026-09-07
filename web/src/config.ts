@@ -7,12 +7,12 @@ export const SEPOLIA_CUSDT =
   '0x4E7B06D78965594eB5EF5414c357ca21E1554491'
 
 export const POOL_ADDRESS = (import.meta.env.VITE_POOL_ADDRESS ||
-  '0x734D71C56731AFEF3c15791c3bAb92ad740de94E') as `0x${string}`
+  '0x96B98e6ae197bD7738af3ff85f503Cb09D077caC') as `0x${string}`
 
 export const NFT_ADDRESS = (import.meta.env.VITE_NFT_ADDRESS ||
   '0x429eB02B06B5DD98deCE25899E49a17E0b6BB035') as `0x${string}`
 export const HOOK_ADDRESS = (import.meta.env.VITE_HOOK_ADDRESS ||
-  '0xCE94E26Eaf2895F32A80D8Cf455De61dC22634F8') as `0x${string}`
+  '0x400382Ea48EfC27a6976E50471438A5dF1730A75') as `0x${string}`
 export const FORWARDER_ADDRESS = (import.meta.env.VITE_FORWARDER_ADDRESS ||
   '0x75E360fd3e87466d7f6e95A85688D3e8F5048921') as `0x${string}`
 
@@ -267,6 +267,8 @@ export function explainError(err: unknown): string {
     return 'Openfort rejected this site origin. In dashboard.openfort.io/security add https://laternpool.xyz and https://www.laternpool.xyz (and http://localhost:5173 for local). Then use email OTP again — not MetaMask SIWE.'
   if (/Passkey approval cancelled|NotAllowedError|Iframe signer did not respond/i.test(raw))
     return 'Passkey was dismissed or timed out. Stay on this tab and click the action again so the browser can ask for your passkey.'
+  if (/Invalid parameters were provided to the RPC method/i.test(raw) && /openfort/i.test(raw))
+    return 'Openfort could not sponsor this call. After a pool redeploy, add the new pool (and hook) to the Sepolia gas policy allowlist, then try again.'
   if (/Transaction creation failed|Network Error/i.test(raw))
     return raw.slice(0, 280) || 'Openfort could not create the transaction. Stay on this tab and try again.'
   if (/expired|sign in again/i.test(raw))

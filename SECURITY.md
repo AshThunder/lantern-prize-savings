@@ -12,7 +12,7 @@ These values are FHE handles. The chain does not publish the plaintext:
 
 - How much you deposited
 - Vault shares and share-seconds
-- Per-user odds and FHE tickets
+- Per-user odds and FHE.rand selection compares
 - Per-user winnings (including encrypted 0)
 
 EIP-712 user decrypt is for the connected wallet only. Authorize does not give other visitors your numbers.
@@ -27,7 +27,7 @@ Needed to run the protocol or to keep prize size honest:
 - Draw timestamps
 - That a claim transaction occurred
 
-Winner selection uses PoolTogether `isWinner` in FHE at claim time. `userSeed` is public (`keccak256(lastDrawEntropy, account, tier)`). Weight and TWAB total stay encrypted. The winner address is never decrypted onchain.
+Winner selection uses onchain `FHE.randEuint64` targets mapped onto encrypted TWAB, then batched cumulative selection in `stepDraw`. Weight and TWAB total stay encrypted. The winner address is never decrypted onchain.
 
 ## Residual leak
 

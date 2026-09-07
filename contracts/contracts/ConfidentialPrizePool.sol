@@ -22,6 +22,7 @@ import {IPrizeHooks, PrizeHooks} from "./interfaces/IPrizeHooks.sol";
 ///      Claimer https://dev.pooltogether.com/protocol/design/prize-claimer
 ///      TWAB https://dev.pooltogether.com/protocol/design/twab-controller
 ///      Incentives https://dev.pooltogether.com/protocol/guides/integrate/prize-incentives
+///      Winner selection: onchain FHE.randEuint64 + cumulative TWAB weights in stepDraw.
 contract ConfidentialPrizePool is ZamaEthereumConfig, Ownable2Step, ERC2771Context, IERC7984Receiver {
     using SafeERC20 for IERC20;
 
@@ -67,6 +68,12 @@ contract ConfidentialPrizePool is ZamaEthereumConfig, Ownable2Step, ERC2771Conte
     euint64 private _grandLeft;
     euint64 private _dailyLeft;
     euint64 private _eligibleTwabTotal;
+    euint64 private _targetGrand;
+    euint64 private _targetDaily;
+    euint64 private _cumGrand;
+    euint64 private _cumDaily;
+    ebool private _grandAwarded;
+    ebool private _dailyAwarded;
     bool private _enforceMinHold;
 
     address[] private _depositors;
@@ -348,7 +355,7 @@ contract ConfidentialPrizePool is ZamaEthereumConfig, Ownable2Step, ERC2771Conte
     }
 
     /// @notice Resolve prize-hook recipients (coprocessor cannot resume after calls).
-    /// @dev Call after `startDraw` (so draw entropy exists) and before `finalizeDraw`.
+    /// @dev Call after `startDraw` and before `stepDraw` / `finalizeDraw`.
     function snapshotPrizeRecipients() external {
         uint256 len = _depositors.length;
         for (uint256 i; i < len; ++i) {
@@ -358,7 +365,7 @@ contract ConfidentialPrizePool is ZamaEthereumConfig, Ownable2Step, ERC2771Conte
         emit RecipientsSnapshotted(len);
     }
 
-    /// @notice Public draw entropy for prize hooks. Vault winner selection uses encrypted FHE tickets instead.
+    /// @notice Public entropy for prize hooks only. Winner selection uses onchain `FHE.randEuint64`.
     function getWinningRandomNumber() external view returns (uint256) {
         return uint256(lastDrawEntropy);
     }
@@ -421,8 +428,8 @@ contract ConfidentialPrizePool is ZamaEthereumConfig, Ownable2Step, ERC2771Conte
     }
 
     /// @notice Permissionless award after the draw period (PoolTogether Draw Manager `startDraw`).
-    /// @dev Freezes the running encrypted vault TWAB in O(1). `minHoldSeconds` zeros last-second deposits.
-    ///      Pays `keeperReward` from `reserve` to `_msgSender()`. See TWAB.md.
+    /// @dev Freezes the running encrypted vault TWAB in O(1), then samples encrypted `FHE.randEuint64`
+    ///      targets. `minHoldSeconds` zeros last-second deposits. Pays `keeperReward` from `reserve`.
     function startDraw() external {
         if (!canStartDraw()) revert DrawIntervalNotElapsed();
         _beginDraw(true);
@@ -435,21 +442,31 @@ contract ConfidentialPrizePool is ZamaEthereumConfig, Ownable2Step, ERC2771Conte
         _beginDraw(false);
     }
 
-    /// @notice Kept for ABI / old keepers. Vault TWAB total is frozen in `startDraw` (O(1)).
-    /// @dev Does not walk depositors. Marks the draw ready to finish.
+    /// @notice Walk up to `n` depositors and credit encrypted grand/daily prizes via cumulative weights.
+    /// @dev Batched to stay under Zama HCU limits (`MAX_STEP`). Call until `remainingScan() == 0`.
     function stepDraw(uint8 n) external {
         if (!drawing) revert DrawNotInProgress();
         if (n == 0 || n > MAX_STEP) revert InvalidStep();
         uint256 len = _depositors.length;
-        scanIndex = len;
+        uint256 end = scanIndex + uint256(n);
+        if (end > len) end = len;
+
+        _syncGlobalTwab();
+        uint32 started = uint32(drawStartedAt);
+        for (uint256 i = scanIndex; i < end; ++i) {
+            _selectDepositor(_depositors[i], started);
+        }
+        scanIndex = end;
         twabSumming = false;
         emit DrawStepped(openDrawId, scanIndex, len);
     }
 
-    /// @notice Close the draw. Vault TWAB total was frozen at start. Does not reveal winners.
+    /// @notice Close the draw after selection completes. Does not reveal winners.
     /// @dev PoolTogether Draw Manager `finishDraw`. Pays `keeperReward` from `reserve`.
+    ///      Unassigned prize cUSDT stays in the pool balance for later draws.
     function finalizeDraw() public {
         if (!drawing) revert DrawNotInProgress();
+        if (scanIndex < _depositors.length) revert DrawScanIncomplete();
 
         drawing = false;
         lastAwardedDrawId = openDrawId;
@@ -460,7 +477,7 @@ contract ConfidentialPrizePool is ZamaEthereumConfig, Ownable2Step, ERC2771Conte
     }
 
     function canFinishDraw() public view returns (bool) {
-        return drawing && _depositors.length > 0;
+        return drawing && scanIndex == _depositors.length && _depositors.length > 0;
     }
 
     /// @notice PoolTogether draw lifecycle: 0 Open, 1 Closed, 2 Awarded, 3 Finalized.
@@ -499,7 +516,9 @@ contract ConfidentialPrizePool is ZamaEthereumConfig, Ownable2Step, ERC2771Conte
     }
 
     function remainingScan() external view returns (uint256) {
-        return 0;
+        if (!drawing) return 0;
+        uint256 len = _depositors.length;
+        return scanIndex >= len ? 0 : len - scanIndex;
     }
 
     // -------------------------------------------------------------------------
@@ -525,8 +544,8 @@ contract ConfidentialPrizePool is ZamaEthereumConfig, Ownable2Step, ERC2771Conte
         _claimTo(winner, winner);
     }
 
-    /// @notice Run PT `isWinner` for `account` on the last awarded draw. Credits encrypted winnings.
-    /// @dev Does not transfer. Call `claim` to pull cUSDT. Losers get encrypted 0. Safe to call for anyone.
+    /// @notice Catch up TWAB for `account` after a draw. Selection already credited winners in `stepDraw`.
+    /// @dev Kept for ABI / Check-prize UX. Does not transfer — call `claim` to pull cUSDT.
     function accruePrize(address account) public {
         _accruePrize(account);
     }
@@ -577,6 +596,7 @@ contract ConfidentialPrizePool is ZamaEthereumConfig, Ownable2Step, ERC2771Conte
         lastDrawPrize = prizeLiquidity;
         lastGrandPrize = grand;
         lastDailyPrize = daily;
+        // Hook entropy only — winner selection uses FHE.randEuint64 below.
         lastDrawEntropy = keccak256(abi.encode(block.prevrandao, block.timestamp, openDrawId, prizeLiquidity));
         prizeLiquidity = 0;
 
@@ -605,29 +625,70 @@ contract ConfidentialPrizePool is ZamaEthereumConfig, Ownable2Step, ERC2771Conte
         FHE.allowThis(_eligibleTwabTotal);
         FHE.allowThis(_twabTotalSnap);
 
+        euint64 total = _zeroIfEmpty(_eligibleTwabTotal);
+        _targetGrand = _mapTicket(FHE.randEuint64(), total);
+        _targetDaily = _mapTicket(FHE.randEuint64(), total);
+        _cumGrand = FHE.asEuint64(0);
+        _cumDaily = FHE.asEuint64(0);
+        _grandAwarded = FHE.asEbool(false);
+        _dailyAwarded = FHE.asEbool(false);
+        FHE.allowThis(_targetGrand);
+        FHE.allowThis(_targetDaily);
+        FHE.allowThis(_cumGrand);
+        FHE.allowThis(_cumDaily);
+        FHE.allowThis(_grandAwarded);
+        FHE.allowThis(_dailyAwarded);
+
         twabSumming = false;
         drawing = true;
-        scanIndex = _depositors.length;
+        scanIndex = 0;
         emit DrawStarted(openDrawId, grand, daily, _depositors.length);
     }
 
-    /// @dev ticket ≈ Uniform[0, totalShares) via (rand64 * total) >> 64 in 128-bit space.
+    /// @dev ticket ≈ Uniform[0, total) via (rand64 * total) >> 64 in 128-bit space.
     function _mapTicket(euint64 randVal, euint64 total) internal returns (euint64) {
         euint128 prod = FHE.mul(FHE.asEuint128(randVal), FHE.asEuint128(total));
         return FHE.asEuint64(FHE.shr(prod, uint8(64)));
     }
 
-    /// @dev PoolTogether V5 `isWinner`: uniform(userSeed, totalTwab) < userTwab * tierOdds.
-    ///      Seed is public (draw entropy + account + tier); total and TWAB stay encrypted.
-    function _winningZone(euint64 twab, uint16 bps) internal returns (euint64) {
-        euint128 zone = FHE.div(FHE.mul(FHE.asEuint128(twab), uint128(bps)), uint128(BPS_DENOMINATOR));
-        return FHE.asEuint64(zone);
-    }
+    /// @dev Accrue TWAB to draw start, then credit grand/daily if the encrypted target falls in this prefix.
+    function _selectDepositor(address account, uint32 started) internal {
+        _accrueUserTo(account, started);
+        euint64 weight = _weightAtDraw(account, openDrawId);
+        _drawWeight[account] = weight;
+        FHE.allowThis(weight);
+        FHE.allow(weight, account);
 
-    function _isWinner(address account, uint8 tier, uint16 bps, euint64 weight, euint64 total) internal returns (ebool) {
-        uint64 seed = uint64(uint256(keccak256(abi.encodePacked(lastDrawEntropy, account, tier))));
-        euint64 ticket = _mapTicket(FHE.asEuint64(seed), total);
-        return FHE.lt(ticket, _winningZone(weight, bps));
+        address recipient = _drawRecipient[account];
+        if (recipient == address(0)) recipient = _chanceOwner(account);
+
+        _cumGrand = FHE.add(_zeroIfEmpty(_cumGrand), weight);
+        FHE.allowThis(_cumGrand);
+        ebool hitGrand = FHE.and(FHE.not(_grandAwarded), FHE.lt(_targetGrand, _cumGrand));
+        euint64 payGrand = FHE.select(hitGrand, _grandLeft, FHE.asEuint64(0));
+        _grandLeft = FHE.sub(_grandLeft, payGrand);
+        _grandAwarded = FHE.or(_grandAwarded, hitGrand);
+        FHE.allowThis(_grandLeft);
+        FHE.allowThis(_grandAwarded);
+
+        _cumDaily = FHE.add(_zeroIfEmpty(_cumDaily), weight);
+        FHE.allowThis(_cumDaily);
+        ebool hitDaily = FHE.and(FHE.not(_dailyAwarded), FHE.lt(_targetDaily, _cumDaily));
+        euint64 payDaily = FHE.select(hitDaily, _dailyLeft, FHE.asEuint64(0));
+        _dailyLeft = FHE.sub(_dailyLeft, payDaily);
+        _dailyAwarded = FHE.or(_dailyAwarded, hitDaily);
+        FHE.allowThis(_dailyLeft);
+        FHE.allowThis(_dailyAwarded);
+
+        euint64 bonus = FHE.add(payGrand, payDaily);
+        euint64 current = _zeroIfEmpty(_winnings[recipient]);
+        euint64 updated = FHE.add(current, bonus);
+        _winnings[recipient] = updated;
+        FHE.allowThis(updated);
+        FHE.allow(updated, recipient);
+
+        prizeSettled[openDrawId][account] = true;
+        emit PrizeAccrued(account, recipient);
     }
 
     /// @dev Integrate encrypted `_totalShares` forward. One mul+add, independent of roster size.
@@ -705,33 +766,13 @@ contract ConfidentialPrizePool is ZamaEthereumConfig, Ownable2Step, ERC2771Conte
     function _accruePrize(address account) internal {
         if (drawing) revert DrawInProgress();
         if (lastAwardedDrawId == 0 || account == address(0)) return;
-        if (prizeSettled[lastAwardedDrawId][account]) return;
+        // Winners were credited during `stepDraw`. Catch up TWAB snaps for skipped draws.
+        if (prizeSettled[lastAwardedDrawId][account]) {
+            _catchUpUser(account);
+            return;
+        }
         prizeSettled[lastAwardedDrawId][account] = true;
-
         _catchUpUser(account);
-        euint64 weight = _zeroIfEmpty(_drawWeight[account]);
-        euint64 total = _zeroIfEmpty(_eligibleTwabTotal);
-        ebool wonGrand = _isWinner(account, 0, GRAND_TIER_BPS, weight, total);
-        ebool wonDaily = _isWinner(account, 1, BPS_DENOMINATOR - GRAND_TIER_BPS, weight, total);
-
-        euint64 payGrand = FHE.select(wonGrand, _grandLeft, FHE.asEuint64(0));
-        _grandLeft = FHE.sub(_grandLeft, payGrand);
-        FHE.allowThis(_grandLeft);
-
-        euint64 payDaily = FHE.select(wonDaily, _dailyLeft, FHE.asEuint64(0));
-        _dailyLeft = FHE.sub(_dailyLeft, payDaily);
-        FHE.allowThis(_dailyLeft);
-
-        euint64 bonus = FHE.add(payGrand, payDaily);
-        address recipient = _drawRecipient[account];
-        if (recipient == address(0)) recipient = _chanceOwner(account);
-
-        euint64 current = _zeroIfEmpty(_winnings[recipient]);
-        euint64 updated = FHE.add(current, bonus);
-        _winnings[recipient] = updated;
-        FHE.allowThis(updated);
-        FHE.allow(updated, recipient);
-        emit PrizeAccrued(account, recipient);
     }
 
     function _withdrawAmount(euint64 requested, address owner_, address receiver, bool exitVault) internal {

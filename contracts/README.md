@@ -8,8 +8,8 @@ Solidity `0.8.27` · `@fhevm/solidity@0.11.1` · `@openzeppelin/confidential-con
 
 | Contract | Address |
 | --- | --- |
-| **ConfidentialPrizePool** (claim-time `isWinner`) | [`0x734D71C56731AFEF3c15791c3bAb92ad740de94E`](https://sepolia.etherscan.io/address/0x734D71C56731AFEF3c15791c3bAb92ad740de94E) |
-| PrizeToNftHolderHook | [`0xCE94E26Eaf2895F32A80D8Cf455De61dC22634F8`](https://sepolia.etherscan.io/address/0xCE94E26Eaf2895F32A80D8Cf455De61dC22634F8) |
+| **ConfidentialPrizePool** (`FHE.rand` selection) | [`0x96B98e6ae197bD7738af3ff85f503Cb09D077caC`](https://sepolia.etherscan.io/address/0x96B98e6ae197bD7738af3ff85f503Cb09D077caC) |
+| PrizeToNftHolderHook | [`0x400382Ea48EfC27a6976E50471438A5dF1730A75`](https://sepolia.etherscan.io/address/0x400382Ea48EfC27a6976E50471438A5dF1730A75) |
 | MockDuckNFT | [`0x429eB02B06B5DD98deCE25899E49a17E0b6BB035`](https://sepolia.etherscan.io/address/0x429eB02B06B5DD98deCE25899E49a17E0b6BB035) |
 | LanternForwarder (onchain, unused by UI) | [`0x75E360fd3e87466d7f6e95A85688D3e8F5048921`](https://sepolia.etherscan.io/address/0x75E360fd3e87466d7f6e95A85688D3e8F5048921) |
 
@@ -21,7 +21,7 @@ hardhat-deploy id: `deploy_lantern_running_twab_v1`. Sepolia draw period is **60
 
 | File | Role |
 | --- | --- |
-| `ConfidentialPrizePool.sol` | Vault, running encrypted TWAB, sponsor split, `startDraw` / `finalizeDraw`, claim-time `isWinner` |
+| `ConfidentialPrizePool.sol` | Vault, running encrypted TWAB, sponsor split, `startDraw` / `stepDraw` / `finalizeDraw`, onchain `FHE.rand` selection |
 | `PrizeToNftHolderHook.sol` | Redirects an encrypted prize to a random enumerable NFT holder |
 | `LanternForwarder.sol` | Minimal ERC-2771 forwarder (UI uses Openfort 7702 instead) |
 | `interfaces/IPrizeHooks.sol` | PoolTogether-style hook interface |
@@ -55,7 +55,7 @@ After a new pool:
 
 ## Tests
 
-15 Hardhat tests in `test/ConfidentialPrizePool.ts`:
+16 Hardhat tests in `test/ConfidentialPrizePool.ts`:
 
 - Encrypted deposit credits shares 1:1
 - Withdraw returns principal (no-loss)
@@ -63,6 +63,7 @@ After a new pool:
 - Withdraw blocked while a draw is in progress
 - `startDraw` blocked until the period elapses
 - Awarded winnings sum to the public prize and can be claimed
+- `finalizeDraw` reverts until the selection scan completes
 - Vault helpers (`previewDeposit` etc.) stay 1:1
 - NFT hook redirects encrypted winnings
 - Last-second deposits get zero TWAB weight
@@ -70,5 +71,5 @@ After a new pool:
 - Sponsor splits 90% prize liquidity / 10% reserve and pays the Start keeper
 - Anyone can `claimFor` a winner
 - Phase moves Closed then Finalized across a timed period
-- `startDraw` freezes vault TWAB in one mul+add
+- `FHE.rand` selection over frozen TWAB finishes only after a full scan
 - Multiple wallets can deposit and claim independently

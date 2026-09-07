@@ -55,5 +55,5 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 };
 
 export default func;
-func.id = "deploy_lantern_running_twab_v1";
+func.id = "deploy_lantern_fhe_rand_v1";
 func.tags = ["Lantern"];
