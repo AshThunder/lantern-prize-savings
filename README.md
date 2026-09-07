@@ -177,17 +177,3 @@ VITE_OPENFORT_FEE_SPONSORSHIP_ID=pol_...
 ```
 
 Without those keys, injected wallet still works.
-
-## Demo video
-
-Spoken script, X thread, and form answers: [PITCH.md](./PITCH.md).
-
-Max 3 minutes, real person, normal speed, no AI voice.
-
-1. Open the live URL. Sign in (email OTP for gasless). Sepolia.
-2. Claim 100 USDT → Shield 10 → Deposit 10. Authorize. Show encrypted shares becoming a number.
-3. Draw: Approve + Sponsor public USDT. **Run draw**.
-4. Save: Check prize. Yellow **claimable** if you won. **Claim my prize** (prize only). **Withdraw all** (deposit back).
-5. Optional 15s: More → mint Duck → Attach hook.
-
-X: tag [@zama](https://x.com/zama) · `#ZamaDeveloperProgram`
